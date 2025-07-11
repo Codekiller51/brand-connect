@@ -8,10 +8,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { AIChatBot } from "@/components/ai-chat-bot"
 import { Toaster } from "@/components/ui/toaster"
-
-// Supabase imports
-import { createClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
+import { SessionProvider } from "@/components/session-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,21 +25,19 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = cookies()
-  const supabase = await createClient(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="relative flex min-h-screen flex-col">
-            <SiteHeader session={session} />
-            <main className="flex-1">{children}</main>
-            <SiteFooter />
-          </div>
-          <AIChatBot />
-          <Toaster />
+          <SessionProvider>
+            <div className="relative flex min-h-screen flex-col">
+              <SiteHeader session={null} />
+              <main className="flex-1">{children}</main>
+              <SiteFooter />
+            </div>
+            <AIChatBot />
+            <Toaster />
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
