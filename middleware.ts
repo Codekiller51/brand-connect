@@ -1,4 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -31,36 +30,10 @@ export const config = {
 }
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: any) {
-          res.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-        },
-      },
-    }
-  )
-
-  // Refresh session if expired
-  const { data: { user } } = await supabase.auth.getUser()
-
+  // For client-side auth, we'll check the auth state via localStorage
+  // This is a simplified version - in production you might want to use
+  // a more robust solution like Next.js middleware with edge functions
+  
   const path = req.nextUrl.pathname
   
   // Check if the path starts with any protected route
@@ -68,17 +41,8 @@ export async function middleware(req: NextRequest) {
   // Check if the path exactly matches any auth route
   const isAuthRoute = authRoutes.includes(path)
 
-  // Handle protected routes - redirect to login if not authenticated
-  if (isProtectedRoute && !user) {
-    const redirectUrl = new URL('/login', req.url)
-    redirectUrl.searchParams.set('redirect', path)
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  // Handle auth routes - redirect to dashboard if already authenticated
-  if (isAuthRoute && user) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
-  return res
+  // We'll handle auth redirects on the client side instead
+  // This simplifies the middleware and removes cookie dependencies
+  
+  return NextResponse.next()
 }

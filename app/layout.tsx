@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { cookies } from "next/headers"
 import "./globals.css"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -26,16 +25,15 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const cookieStore = cookies()
-  const supabase = await createClient(cookieStore)
-  const { data: { session } } = await supabase.auth.getSession()
+  // We'll use client-side authentication instead of server-side
+  // This avoids using cookies
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <div className="relative flex min-h-screen flex-col">
-            <SiteHeader session={session} />
+            <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />
           </div>
