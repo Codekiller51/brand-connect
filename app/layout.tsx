@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { cookies } from "next/headers"
 import "./globals.css"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -8,7 +9,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { AIChatBot } from "@/components/ai-chat-bot"
 import { Toaster } from "@/components/ui/toaster"
-import { SessionProvider } from "@/components/session-provider"
+import { createClient } from "@/lib/supabase/server"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,19 +26,21 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = cookies()
+  const supabase = await createClient(cookieStore)
+  const { data: { session } } = await supabase.auth.getSession()
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <SessionProvider>
-            <div className="relative flex min-h-screen flex-col">
-              <SiteHeader session={null} />
-              <main className="flex-1">{children}</main>
-              <SiteFooter />
-            </div>
-            <AIChatBot />
-            <Toaster />
-          </SessionProvider>
+          <div className="relative flex min-h-screen flex-col">
+            <SiteHeader session={session} />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+          <AIChatBot />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
