@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface SiteHeaderProps {
-  session: Session | null
+  session: Session | null | undefined
 }
 
 export function SiteHeader({ session }: SiteHeaderProps) {
