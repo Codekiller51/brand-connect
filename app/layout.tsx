@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/toaster"
 
 // Supabase imports
 import { createClient } from "@/lib/supabase/server"
-import { headers, cookies } from "next/headers"
+import { cookies } from "next/headers"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,7 +28,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
+  const cookieStore = cookies()
+  const supabase = await createClient(cookieStore)
   const { data: { session } } = await supabase.auth.getSession()
 
   return (
