@@ -1,8 +1,10 @@
-import { supabase } from "@/lib/supabase/client"
-import type { User, CreativeProfile, Booking, Conversation, Message } from "@/lib/database/types"
+import { createClient } from '@supabase/supabase-js'
+import type { User } from '@/lib/database/types'
+import type { CreativeProfile } from '@/lib/database/creative-profile'
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export class DatabaseService {
-  // User operations
   static async getUsers(filters?: any): Promise<User[]> {
     let query = supabase.from("users").select("*")
 
@@ -15,19 +17,11 @@ export class DatabaseService {
     return data || []
   }
 
-  static async getUserById(id: string): Promise<User | null> {
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
-
-    if (error) throw error
-    return data
-  }
-
-  // Creative profiles
   static async getCreativeProfiles(filters?: any): Promise<CreativeProfile[]> {
     let query = supabase.from("creative_profiles").select(`
-        *,
-        user:users(*)
-      `)
+      *,
+      user:users(*)
+    `)
 
     if (filters?.category) {
       query = query.eq("category", filters.category)
@@ -43,8 +37,7 @@ export class DatabaseService {
       .from("creative_profiles")
       .select(`
         *,
-        user:users(*),
-        services(*)
+        user:users(*)
       `)
       .eq("id", id)
       .single()
@@ -53,135 +46,32 @@ export class DatabaseService {
     return data
   }
 
-  // Bookings
-  static async getBookings(filters?: any): Promise<Booking[]> {
-    let query = supabase
-      .from("bookings")
-      .select(`
-        *,
-        client:users!client_id(*),
-        creative:users!creative_id(*),
-        service:services(*)
-      `)
-      .order("created_at", { ascending: false })
-
-    if (filters?.status) {
-      query = query.eq("status", filters.status)
-    }
-
-    if (filters?.client_id) {
-      query = query.eq("client_id", filters.client_id)
-    }
-
-    if (filters?.creative_id) {
-      query = query.eq("creative_id", filters.creative_id)
-    }
-
-    const { data, error } = await query
-    if (error) throw error
-    return data || []
-  }
-
-  static async createBooking(booking: Partial<Booking>): Promise<Booking> {
-    const { data, error } = await supabase.from("bookings").insert(booking).select().single()
-
-    if (error) throw error
-    return data
-  }
-
-  static async updateBooking(id: string, updates: Partial<Booking>): Promise<Booking> {
-    const { data, error } = await supabase.from("bookings").update(updates).eq("id", id).select().single()
-
-    if (error) throw error
-    return data
-  }
-
-  // Conversations
-  static async getConversations(userId: string): Promise<Conversation[]> {
+  static async updateCreativeProfile(id: string, profile: Partial<CreativeProfile>): Promise<CreativeProfile> {
     const { data, error } = await supabase
-      .from("conversations")
+      .from("creative_profiles")
+      .update(profile)
+      .eq("id", id)
       .select(`
         *,
-        client:users!client_id(*),
-        creative:users!creative_id(*),
-        booking:bookings(*)
-      `)
-      .or(`client_id.eq.${userId},creative_id.eq.${userId}`)
-      .order("last_message_at", { ascending: false })
-
-    if (error) throw error
-    return data || []
-  }
-
-  static async getMessages(conversationId: string): Promise<Message[]> {
-    const { data, error } = await supabase
-      .from("messages")
-      .select(`
-        *,
-        sender:users(*)
-      `)
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-
-    if (error) throw error
-    return data || []
-  }
-
-  static async sendMessage(message: Partial<Message>): Promise<Message> {
-    const { data, error } = await supabase
-      .from("messages")
-      .insert(message)
-      .select(`
-        *,
-        sender:users(*)
+        user:users(*)
       `)
       .single()
 
     if (error) throw error
-
-    // Update conversation last_message_at
-    await supabase
-      .from("conversations")
-      .update({ last_message_at: new Date().toISOString() })
-      .eq("id", message.conversation_id)
-
     return data
   }
 
-  // Real-time subscriptions
-  static subscribeToMessages(conversationId: string, callback: (message: Message) => void) {
-    return supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          callback(payload.new as Message)
-        },
-      )
-      .subscribe()
-  }
+  static async createCreativeProfile(profile: Partial<CreativeProfile>): Promise<CreativeProfile> {
+    const { data, error } = await supabase
+      .from("creative_profiles")
+      .insert(profile)
+      .select(`
+        *,
+        user:users(*)
+      `)
+      .single()
 
-  static subscribeToBookings(userId: string, callback: (booking: Booking) => void) {
-    return supabase
-      .channel(`bookings:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-          filter: `or(client_id.eq.${userId},creative_id.eq.${userId})`,
-        },
-        (payload) => {
-          callback(payload.new as Booking)
-        },
-      )
-      .subscribe()
+    if (error) throw error
+    return data
   }
 }

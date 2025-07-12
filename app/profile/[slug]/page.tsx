@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Clock, Facebook, Instagram, Linkedin, MapPin, MessageSquare, Star, Twitter } from "lucide-react"
@@ -7,95 +10,69 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { DatabaseService } from "@/lib/services/database-service"
 
 export default function ProfilePage({ params }: { params: { slug: string } }) {
-  // In a real app, you would fetch the profile data based on the slug
-  const profile = {
-    name: "Maria Joseph",
-    title: "Graphic Designer",
-    location: "Dar es Salaam",
-    rating: 4.9,
-    reviews: 124,
-    completedProjects: 87,
-    joinedDate: "January 2022",
-    about:
-      "I'm a passionate graphic designer with over 5 years of experience specializing in brand identity, logo design, and print materials. I work closely with clients to understand their vision and deliver designs that exceed expectations.",
-    skills: ["Logo Design", "Brand Identity", "Print Design", "Packaging", "Social Media Graphics", "UI/UX Design"],
-    services: [
-      {
-        title: "Logo Design",
-        price: "Tsh 250,000",
-        description: "Custom logo design including 3 concepts, unlimited revisions, and all file formats.",
-        deliveryTime: "3-5 days",
-      },
-      {
-        title: "Brand Identity Package",
-        price: "Tsh 750,000",
-        description: "Complete brand identity including logo, business cards, letterhead, and brand guidelines.",
-        deliveryTime: "7-10 days",
-      },
-      {
-        title: "Social Media Package",
-        price: "Tsh 350,000",
-        description: "10 custom social media graphics designed for your brand across multiple platforms.",
-        deliveryTime: "5-7 days",
-      },
-    ],
-    portfolio: [
-      {
-        title: "ABC Company Rebrand",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "Brand Identity",
-      },
-      {
-        title: "XYZ Restaurant Menu Design",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "Print Design",
-      },
-      {
-        title: "123 Tech Logo Design",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "Logo Design",
-      },
-      {
-        title: "Fashion Brand Packaging",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "Packaging",
-      },
-      {
-        title: "Event Promotion Materials",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "Print Design",
-      },
-      {
-        title: "E-commerce Website UI",
-        image: "/placeholder.svg?height=400&width=400",
-        category: "UI/UX Design",
-      },
-    ],
-    testimonials: [
-      {
-        name: "John Doe",
-        company: "ABC Company",
-        image: "/placeholder.svg?height=60&width=60",
-        text: "Maria did an exceptional job on our company rebrand. She understood our vision perfectly and delivered designs that exceeded our expectations. Highly recommended!",
-        rating: 5,
-      },
-      {
-        name: "Sarah Smith",
-        company: "XYZ Restaurant",
-        image: "/placeholder.svg?height=60&width=60",
-        text: "Working with Maria was a pleasure. She designed our new menu and promotional materials, and the results were outstanding. Professional, responsive, and talented!",
-        rating: 5,
-      },
-      {
-        name: "Michael Johnson",
-        company: "123 Tech",
-        image: "/placeholder.svg?height=60&width=60",
-        text: "Maria created a perfect logo for our tech startup. She was patient with revisions and made sure we were completely satisfied with the final design.",
-        rating: 4,
-      },
-    ],
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        // Fetch creative profile data based on slug
+        const profiles = await DatabaseService.getCreativeProfiles()
+        const userProfile = profiles.find(p => p.user.id === params.slug)
+        
+        if (userProfile) {
+          setProfile({
+            name: userProfile.user.name,
+            title: userProfile.title,
+            location: userProfile.user.location,
+            rating: userProfile.rating || 0,
+            reviews: userProfile.reviews || 0,
+            completedProjects: userProfile.completed_projects || 0,
+            joinedDate: new Date(userProfile.user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            about: userProfile.bio,
+            skills: userProfile.skills || [],
+            services: userProfile.services || [],
+            portfolio: userProfile.portfolio || [],
+            testimonials: userProfile.testimonials || []
+          })
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProfile()
+  }, [params.slug])
+
+  if (loading) {
+    return (
+      <div className="container px-4 py-8 md:px-6 md:py-12">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <div className="container px-4 py-8 md:px-6 md:py-12">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-bold">Profile Not Found</h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-2">The requested profile could not be found.</p>
+            <Button className="mt-4" asChild>
+              <Link href="/search">Browse Creatives</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
