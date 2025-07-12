@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr"
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export const createClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,7 +15,7 @@ export const createClient = () => {
   console.log('Initializing Supabase client with URL:', supabaseUrl);
   
   try {
-    const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    const client = createSupabaseClient(supabaseUrl, supabaseAnonKey);
     console.log('Supabase client created successfully');
     return client;
   } catch (error) {

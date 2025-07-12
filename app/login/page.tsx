@@ -31,8 +31,6 @@ export default function LoginPage() {
   
     try {
       const supabase = createClient()
-      console.log('Supabase client:', supabase)
-      console.log('Form data:', formData)
   
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
@@ -44,7 +42,6 @@ export default function LoginPage() {
       }
 
       toast.success("Logged in successfully")
-      router.refresh()
       const redirectTo = searchParams.get('redirect') || '/dashboard'
       router.push(redirectTo)
     } catch (error: any) {
