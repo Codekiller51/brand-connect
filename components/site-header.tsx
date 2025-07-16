@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 import { MainNav } from "@/components/main-nav"
 import { ModeToggle } from "@/components/mode-toggle"
@@ -12,12 +14,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 export function SiteHeader() {
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user || null)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user || null)
+      } catch (error) {
+        // Silent fail - don't show errors in header
+      } finally {
+        setLoading(false)
+      }
     }
 
     getUser()
@@ -36,9 +46,16 @@ export function SiteHeader() {
   }, [supabase])
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error.message);
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success("Signed out successfully")
+      router.push("/")
+    } catch (error: any) {
+      toast.error(error.message || "Error signing out")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -49,7 +66,11 @@ export function SiteHeader() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
             <ModeToggle />
-            {user ? (
+            {loading ? (
+              <Button variant="ghost" size="icon" disabled>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              </Button>
+            ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">

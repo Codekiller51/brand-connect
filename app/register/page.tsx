@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
+import { z } from "zod"
 
 import { createClient } from "@/lib/supabase/client"
 
@@ -13,11 +14,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -30,92 +34,95 @@ export default function RegisterPage() {
   })
 
   const handleUserTypeChange = (type: string) => {
-    console.log('Changing user type to:', type);
     setFormData(prev => ({ ...prev, userType: type }));
   }
 
-  const validatePassword = (password: string) => {
-    const minLength = 8
-    const hasUpperCase = /[A-Z]/.test(password)
-    const hasLowerCase = /[a-z]/.test(password)
-    const hasNumbers = /\d/.test(password)
-    const hasSpecialChar = /[!@#$%^&*]/.test(password)
-    
-    return (
-      password.length >= minLength &&
-      hasUpperCase &&
-      hasLowerCase &&
-      hasNumbers &&
-      hasSpecialChar
-    )
-  }
+  // Create validation schema
+  const userSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Please enter a valid email address"),
+    phone: z.string().min(10, "Please enter a valid phone number"),
+    location: z.string().min(2, "Location is required"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    acceptedTerms: z.literal(true, {
+      errorMap: () => ({ message: "You must accept the terms and conditions" }),
+    }),
+  });
+  
+  // Add profession field for creative users
+  const creativeSchema = userSchema.extend({
+    profession: z.string().min(2, "Profession is required"),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Form submitted with data:', formData);
-    
-    if (!formData.name || !formData.email || !formData.password) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    if (!formData.acceptedTerms) {
-      toast.error("Please accept the Terms of Service and Privacy Policy");
-      return;
-    }
-
-    setIsLoading(true)
-
-    if (!validatePassword(formData.password)) {
-      toast.error("Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.")
-      setIsLoading(false)
-      return
-    }
+    setError(null);
+    setIsLoading(true);
 
     try {
-      console.log('Starting registration process...');
-      const supabase = createClient()
-      console.log('Supabase client created successfully.');
+      // Validate form data
+      const schema = formData.userType === 'creative' ? creativeSchema : userSchema;
+      const validatedData = schema.parse(formData);
 
-      const signUpData = {
-        email: formData.email,
-        password: formData.password,
+      const supabase = createClient();
+
+      // Check if email already exists
+      const { data: existingUser } = await supabase
+        .from(formData.userType === 'creative' ? 'creative_profiles' : 'client_profiles')
+        .select('email')
+        .eq('email', formData.email)
+        .single();
+      
+      if (existingUser) {
+        throw new Error(`This email is already registered as a ${formData.userType}`);
+      }
+      
+      // Sign up the user
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: validatedData.email,
+        password: validatedData.password,
         options: {
           data: {
-            full_name: formData.name,
-            phone: formData.phone,
-            location: formData.location,
+            full_name: validatedData.name,
+            phone: validatedData.phone,
+            location: validatedData.location,
             user_type: formData.userType,
-            ...(formData.userType === 'creative' && { profession: formData.profession })
+            ...(formData.userType === 'creative' && { profession: validatedData.profession })
           }
         }
-      };
-      console.log('Sending signup data to Supabase:', { ...signUpData, password: '[REDACTED]' });
-      
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp(signUpData)
+      });
 
       if (signUpError) {
-        console.error('SignUp Error:', signUpError.message);
-        throw signUpError;
-      }
-      console.log('User signed up successfully:', user);
-
-      if (user) {
-        console.log('User created successfully:', { userId: user.id, userType: formData.userType });
-        console.log('Creating profile for user type:', formData.userType);
-        // Profile creation is handled by the database trigger
-        console.log('Profile will be created by database trigger');
+        throw new Error(signUpError.message);
       }
 
-      toast.success("Account created successfully! Please check your email to verify your account.")
-      router.push("/login")
+      toast.success("Account created successfully! Please check your email to verify your account.");
+      
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+      
     } catch (error: any) {
-      console.error('Registration failed with error:', error);
-      const errorMessage = error.message || "Failed to create account";
-      console.log('Showing error toast:', errorMessage);
-      toast.error(errorMessage)
+      // Handle zod validation errors
+      if (error.errors) {
+        const firstError = error.errors[0];
+        setError(firstError.message);
+        toast.error(firstError.message);
+      } else {
+        // Handle other errors
+        const errorMessage = error.message || "Failed to create account";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -130,6 +137,12 @@ export default function RegisterPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
           <Tabs defaultValue="client" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger 

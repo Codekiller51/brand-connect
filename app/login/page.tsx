@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
+import { AlertCircle } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 
@@ -13,12 +14,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -27,12 +30,13 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setIsLoading(true)
   
     try {
       const supabase = createClient()
   
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       })
@@ -41,15 +45,28 @@ export default function LoginPage() {
         throw error
       }
 
-      toast.success("Logged in successfully")
+      // Get user metadata to provide personalized welcome message
+      const userName = data.user?.user_metadata?.full_name || data.user?.user_metadata?.name || 'User'
+      toast.success(`Welcome back, ${userName}!`)
+      
       const redirectTo = searchParams.get('redirect') || '/dashboard'
-      router.push(redirectTo)
+      
+      // Small delay to show the success message
+      setTimeout(() => {
+        router.push(redirectTo)
+      }, 1000)
+      
     } catch (error: any) {
+      setError(null)
+      
       if (error.message.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password')
+        setError('Invalid email or password. Please try again.')
+        toast.error('Invalid email or password. Please try again.')
       } else if (error.message.includes('Email not confirmed')) {
-        toast.error('Please verify your email address')
+        setError('Please verify your email address before logging in.')
+        toast.error('Please verify your email address before logging in.')
       } else {
+        setError(error.message || "Failed to login")
         toast.error(error.message || "Failed to login")
       }
     } finally {
@@ -68,6 +85,12 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input 
