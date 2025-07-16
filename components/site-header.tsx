@@ -17,7 +17,7 @@ export function SiteHeader() {
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      setUser(user || null)
     }
 
     getUser()
@@ -36,12 +36,9 @@ export function SiteHeader() {
   }, [supabase])
 
   const handleSignOut = async () => {
-    console.log('Attempting to sign out...');
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error.message);
-    } else {
-      console.log('Sign out successful.');
     }
   }
 

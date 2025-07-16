@@ -8,7 +8,6 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { AIChatBot } from "@/components/ai-chat-bot"
 import { Toaster } from "@/components/ui/toaster"
-import { createClient } from "@/lib/supabase/server"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,16 +19,11 @@ export const metadata: Metadata = {
     generator: 'v0.dev'
 }
 
-'use client'
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // We'll use client-side authentication instead of server-side
-  // This avoids using cookies
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>

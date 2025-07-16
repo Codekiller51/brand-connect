@@ -53,6 +53,11 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Form submitted with data:', formData);
+    
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
 
     if (!formData.acceptedTerms) {
       toast.error("Please accept the Terms of Service and Privacy Policy");
@@ -71,8 +76,7 @@ export default function RegisterPage() {
       console.log('Starting registration process...');
       const supabase = createClient()
       console.log('Supabase client created successfully.');
-      
-      console.log('Attempting to sign up with:', { email: formData.email, userType: formData.userType });
+
       const signUpData = {
         email: formData.email,
         password: formData.password,
@@ -91,7 +95,7 @@ export default function RegisterPage() {
       const { data: { user }, error: signUpError } = await supabase.auth.signUp(signUpData)
 
       if (signUpError) {
-        console.error('SignUp Error:', signUpError);
+        console.error('SignUp Error:', signUpError.message);
         throw signUpError;
       }
       console.log('User signed up successfully:', user);
@@ -99,26 +103,8 @@ export default function RegisterPage() {
       if (user) {
         console.log('User created successfully:', { userId: user.id, userType: formData.userType });
         console.log('Creating profile for user type:', formData.userType);
-        const tableName = formData.userType === 'creative' ? 'creative_profiles' : 'client_profiles';
-        console.log('Attempting to create profile in table:', tableName);
-        const { error: profileError } = await supabase
-          .from(tableName)
-          .insert([
-            {
-              id: user.id,
-              full_name: formData.name,
-              email: formData.email,
-              phone: formData.phone,
-              location: formData.location,
-              ...(formData.userType === 'creative' && { profession: formData.profession })
-            }
-          ])
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          throw profileError;
-        }
-        console.log('Profile created successfully');
+        // Profile creation is handled by the database trigger
+        console.log('Profile will be created by database trigger');
       }
 
       toast.success("Account created successfully! Please check your email to verify your account.")
