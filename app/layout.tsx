@@ -20,7 +20,9 @@ export const metadata: Metadata = {
     generator: 'v0.dev'
 }
 
-export default async function RootLayout({
+'use client'
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
